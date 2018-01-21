@@ -74,7 +74,7 @@ It is probably easiest to install ROS and deploy everything with Docker, and alt
 
 Clone the repository on your host OS to your PWD
 ```bash
-cd $PWD/Dragon
+cd $PWD/DragonFork
 ```
 If you do not have Docker, feel free to install Docker for your host OS.
 [Install Docker](https://docs.docker.com/engine/installation/)
@@ -86,20 +86,20 @@ docker build . -t capstone
 
 Run the docker file
 ```bash
-docker run -p 4567:4567 -v $PWD:/Dragon -v /tmp/log:/root/.ros/ --rm -it capstone
+docker run -p 4567:4567 -v $PWD:/DragonFork -v /tmp/log:/root/.ros/ --rm -it capstone
 ```
 
 Source the ROS env variables. (Change Kinematic to Indigo if using 14.04)
 ```bash
 echo "source /opt/ros/kinetic/setup.bash" >> ~/.bashrc
-echo "source /Dragon/ros/devel/setup.bash" >> ~/.bashrc
+echo "source /DragonFork/ros/devel/setup.bash" >> ~/.bashrc
 ```
 
 Clone this project repository
 
 Install python dependencies
 ```bash
-cd /Dragon
+cd /DragonFork
 pip install -r requirements.txt
 ```
 
@@ -122,7 +122,7 @@ docker ps
 You can choose to grep the container ID or name and pipe it into the exec command directly or just use the clipboard to copy and paste
 ```bash
 docker exec -it <container name or id> /bin/bash
-cd /Dragon/ros
+cd /DragonFork/ros
 ```
 This will successfully get you a new bash window to the container where your ros environment resides.
 
@@ -144,7 +144,7 @@ roslaunch launch/styx.launch
 1. Open 2 different bash shells
 2. In both bash windows do the following. (If you have installed with the instructions above, skip this step.)
 ```bash
-cd Dragon/ros
+cd DragonFork/ros
 source devel/setup.bash
 ```
 3. In window 1,
@@ -160,9 +160,9 @@ roslaunch tl_detector tl_detector.launch
 
 ### How to test dbw
 
-In order to test dbw, you need to download the ros.bag file and save it to the $PWD/Dragon/data directory
+In order to test dbw, you need to download the ros.bag file and save it to the $PWD/DragonFork/data directory
 ```bash
-cd /Dragon/data
+cd /DragonFork/data
 curl -H "Authorization: Bearer YYYYY” https://www.googleapis.com/drive/v3/files/0B2_h37bMVw3iT0ZEdlF4N01QbHc?alt=media -o udacity_succesful_light_detection.bag
 mv udacity_succesful_light_detection.bag dbw_test.rosbag.bag
 ```
