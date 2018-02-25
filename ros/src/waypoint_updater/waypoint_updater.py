@@ -47,7 +47,7 @@ class WaypointUpdater(object):
 
         self.stop_line_wp_idx = -1
         self.last_stop_line_wp_idx = -1
-        self.max_updated_wp_idx = -1
+        self.max_updated_wp_idx =    -1
         self.stop_line_buffer = 5
         self.has_traffic_waypoint = False
         self.waypoint_velocity_updated = False
@@ -183,11 +183,12 @@ class WaypointUpdater(object):
             self.set_waypoint_velocity(self.base_waypoints, i, stopping_vel)
 
         # update by zero speed padding
-        for i in range(tgt_stop_line_idx
-                    , tgt_stop_line_idx + self.zero_padding_wps):
+        waypoint_ubound = min(tgt_stop_line_idx + self.zero_padding_wps, 
+                          len(self.base_waypoints))
+        for i in range(tgt_stop_line_idx, waypoint_ubound):
             self.set_waypoint_velocity(self.base_waypoints, i, 0.)
 
-        self.max_updated_wp_idx = tgt_stop_line_idx + self.zero_padding_wps
+        self.max_updated_wp_idx = waypoint_ubound
 
     def publish_final_waypoints(self, next_wp_idx):
         end_wp_idx = min(next_wp_idx + LOOKAHEAD_WPS
@@ -201,7 +202,7 @@ class WaypointUpdater(object):
             waypoints.append(self.base_waypoints[i])
             #'''
             if self.waypoint_velocity_updated:
-                rospy.loginfo('updated vel: x=%s, vel=%s'
+                rospy.logdebug('updated vel: x=%s, vel=%s'
                     , self.base_waypoints[i].pose.pose.position.x
                     , self.base_waypoints[i].twist.twist.linear.x)
             #'''
