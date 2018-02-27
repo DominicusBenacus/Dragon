@@ -47,7 +47,7 @@ class WaypointUpdater(object):
 
         self.stop_line_wp_idx = -1
         self.last_stop_line_wp_idx = -1
-        self.max_updated_wp_idx = -1
+        self.max_updated_wp_idx =    -1
         self.stop_line_buffer = 5
         self.has_traffic_waypoint = False
         self.waypoint_velocity_updated = False
@@ -114,17 +114,25 @@ class WaypointUpdater(object):
                 dist = max(0.00001, dist_for_stop)
                 decel = self.current_velocity**2/(2*dist)
 
-                # if it is possible to stop
+                # happy case - stop on target observing deceleration limit
                 if decel < abs(self.decel_limit):
                     max_decel = max(abs(self.decel_limit), decel)
                     self.update_waypoints_for_stop(next_wp_idx, max_decel)
                     rospy.loginfo("update: stop in time by max_decel %s"
                         , max_decel)
-                # just pass
+                # late braking - miss the target but observe deceleration limit
                 else:
-                    self.update_waypoints_for_drive(next_wp_idx)
-                    rospy.loginfo("update: cannot stop in time by decel %s"
-                        , decel)
+                    act_decel = abs(self.decel_limit)
+                    act_dist = self.current_velocity**2/(2*act_decel)
+                    act_stop_wp_idx = self.stop_line_wp_idx
+                    rospy.loginfo("update: late braking. Need decel %s, available " +
+                                  "%s. Missing target stop waypoint by %s[m].",
+                                  decel, act_decel, act_dist-dist)
+                    while dist < act_dist:
+                        dist += self.distance(self.base_waypoints, 
+                                              act_stop_wp_idx, act_stop_wp_idx+1)
+                        act_stop_wp_idx += 1
+                    self.update_waypoints_for_stop(next_wp_idx, act_decel, act_stop_wp_idx)
             # just pass
             else:
                 self.update_waypoints_for_drive(next_wp_idx)
@@ -156,13 +164,18 @@ class WaypointUpdater(object):
                         , i, self.required_velocity)
         return
 
-    def update_waypoints_for_stop(self, next_wp_idx, decel):
+    def update_waypoints_for_stop(self, next_wp_idx, decel, 
+                                  actual_stop_wp_idx=None):
+        if actual_stop_wp_idx is None:
+            actual_stop_wp_idx = self.stop_line_wp_idx
         # to make stop a little before the stop line
-        if self.stop_line_wp_idx >= self.stop_line_buffer:
-            stop_line_wp_idx = self.stop_line_wp_idx - self.stop_line_buffer
+        if actual_stop_wp_idx > self.stop_line_buffer + next_wp_idx:
+            tgt_stop_line_idx = actual_stop_wp_idx - self.stop_line_buffer
+        else:
+            tgt_stop_line_idx = actual_stop_wp_idx
 
-        for i in range(next_wp_idx, stop_line_wp_idx):
-            dist = self.distance(self.base_waypoints, i, stop_line_wp_idx)
+        for i in range(next_wp_idx, tgt_stop_line_idx):
+            dist = self.distance(self.base_waypoints, i, tgt_stop_line_idx)
             dist = max(0., dist)
             stopping_vel = math.sqrt(2*decel*dist)
             stopping_vel = min(stopping_vel, self.required_velocity)
@@ -170,11 +183,12 @@ class WaypointUpdater(object):
             self.set_waypoint_velocity(self.base_waypoints, i, stopping_vel)
 
         # update by zero speed padding
-        for i in range(stop_line_wp_idx
-                    , stop_line_wp_idx + self.zero_padding_wps):
+        waypoint_ubound = min(tgt_stop_line_idx + self.zero_padding_wps, 
+                          len(self.base_waypoints))
+        for i in range(tgt_stop_line_idx, waypoint_ubound):
             self.set_waypoint_velocity(self.base_waypoints, i, 0.)
 
-        self.max_updated_wp_idx = stop_line_wp_idx + self.zero_padding_wps
+        self.max_updated_wp_idx = waypoint_ubound
 
     def publish_final_waypoints(self, next_wp_idx):
         end_wp_idx = min(next_wp_idx + LOOKAHEAD_WPS
@@ -188,7 +202,7 @@ class WaypointUpdater(object):
             waypoints.append(self.base_waypoints[i])
             #'''
             if self.waypoint_velocity_updated:
-                rospy.loginfo('updated vel: x=%s, vel=%s'
+                rospy.logdebug('updated vel: x=%s, vel=%s'
                     , self.base_waypoints[i].pose.pose.position.x
                     , self.base_waypoints[i].twist.twist.linear.x)
             #'''
@@ -230,9 +244,9 @@ class WaypointUpdater(object):
     def distance(self, waypoints, wp1, wp2):
         dist = 0
         dl = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2 + (a.z-b.z)**2)
-        for i in range(wp1, wp2+1):
-            dist += dl(waypoints[wp1].pose.pose.position, waypoints[i].pose.pose.position)
-            wp1 = i
+        for i in range((wp2 - wp1) % len(waypoints)):
+            dist += dl(waypoints[(wp1 + i) % len(waypoints)].pose.pose.position, 
+                                 waypoints[(wp1 + i + 1) % len(waypoints)].pose.pose.position)
         return dist
 
 
