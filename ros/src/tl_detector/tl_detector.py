@@ -94,12 +94,14 @@ class TLDetector(object):
             self.state = state
             rospy.loginfo('publish_traffic: has_image(%s), state=%s at %s(car_wp_idx=%s), %s'
                 , self.has_image, state, stop_line_wp_idx, self.car_wp_idx, self.state_count)
-        elif self.state_count >= STATE_COUNT_THRESHOLD:
+        elif ((self.state_count >= STATE_COUNT_THRESHOLD and state != TrafficLight.UNKNOWN) or
+              self.state_count >= STATE_COUNT_THRESHOLD * 10):
             self.last_state = self.state
             if state != TrafficLight.RED: stop_line_wp_idx = -1
             self.last_stop_line_wp_idx = stop_line_wp_idx
             # reduce logging
-            if self.state_count == STATE_COUNT_THRESHOLD:
+            if ((state != TrafficLight.UNKNOWN and self.state_count == STATE_COUNT_THRESHOLD) or 
+                (state == TrafficLight.UNKNOWN and self.state_count == STATE_COUNT_THRESHOLD * 10)):
                 rospy.loginfo('publish_traffic: has_image(%s), state=%s at %s(car_wp_idx=%s), %s>=%s'
                     , self.has_image, state, stop_line_wp_idx, self.car_wp_idx
                         , self.state_count, STATE_COUNT_THRESHOLD)
