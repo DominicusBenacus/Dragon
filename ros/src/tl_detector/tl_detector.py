@@ -94,12 +94,14 @@ class TLDetector(object):
             self.state = state
             rospy.loginfo('publish_traffic: has_image(%s), state=%s at %s(car_wp_idx=%s), %s'
                 , self.has_image, state, stop_line_wp_idx, self.car_wp_idx, self.state_count)
-        elif self.state_count >= STATE_COUNT_THRESHOLD:
+        elif ((self.state_count >= STATE_COUNT_THRESHOLD and state != TrafficLight.UNKNOWN) or
+              self.state_count >= STATE_COUNT_THRESHOLD * 10):
             self.last_state = self.state
-            stop_line_wp_idx = stop_line_wp_idx if state == TrafficLight.RED else -1
+            if state != TrafficLight.RED: stop_line_wp_idx = -1
             self.last_stop_line_wp_idx = stop_line_wp_idx
             # reduce logging
-            if self.state_count == STATE_COUNT_THRESHOLD:
+            if ((state != TrafficLight.UNKNOWN and self.state_count == STATE_COUNT_THRESHOLD) or 
+                (state == TrafficLight.UNKNOWN and self.state_count == STATE_COUNT_THRESHOLD * 10)):
                 rospy.loginfo('publish_traffic: has_image(%s), state=%s at %s(car_wp_idx=%s), %s>=%s'
                     , self.has_image, state, stop_line_wp_idx, self.car_wp_idx
                         , self.state_count, STATE_COUNT_THRESHOLD)
@@ -177,11 +179,9 @@ class TLDetector(object):
         return closest_wp_idx
 
 
-    def get_light_state(self, light):
+    def get_light_state(self):
         """Determines the current color of the traffic light
 
-        Args:
-            light (TrafficLight): light to classify
 
         Returns:
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
@@ -215,7 +215,7 @@ class TLDetector(object):
         min_dist = 100000
         for stop_line_wp_idx in self.stop_line_wp_idxs:
             dist = stop_line_wp_idx - self.car_wp_idx
-            if dist >= 0 and dist < min_dist:
+            if dist >= -2 and dist < min_dist:
                 min_dist = dist
                 if min_dist < self.visible_distance_wps:
                     # It uses the stop_line postion rather than the traffic light position
@@ -225,7 +225,7 @@ class TLDetector(object):
         if light_wp != -1:
             # if camera is on: through classifier
             if self.has_image:
-                state = self.get_light_state(light_wp)
+                state = self.get_light_state()
                 return light_wp, state
             # if camera is off: through ground truth
             else:
@@ -238,7 +238,7 @@ class TLDetector(object):
                     stop_line_y = self.waypoints[light_wp].pose.pose.position.y
                     dist = math.sqrt((light_x - stop_line_x)**2 + (light_y - stop_line_y)**2)
                     if dist < min_dist:
-                        dist = min_dist
+                        min_dist = dist
                         state = light.state
                 return light_wp, state
             rospy.loginfo('process_traffic_lights: visible stop_line_wp: %s', light_wp)

@@ -107,7 +107,7 @@ class WaypointUpdater(object):
                     , self.stop_line_wp_idx)
 
             # when the stop_line is before the car
-            if self.stop_line_wp_idx > next_wp_idx:
+            if self.stop_line_wp_idx > next_wp_idx + 2:
                 dist_for_stop = self.distance(self.base_waypoints
                     , next_wp_idx, self.stop_line_wp_idx)
 
